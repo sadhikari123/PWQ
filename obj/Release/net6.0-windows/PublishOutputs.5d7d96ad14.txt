@@ -1,0 +1,7 @@
+C:\Users\sanjayad\MyApps\LHDConfigEditor\publish\LHDConfigEditor.exe
+C:\Users\sanjayad\MyApps\LHDConfigEditor\publish\app_icon.ico
+C:\Users\sanjayad\MyApps\LHDConfigEditor\publish\LHDConfigEditor.dll
+C:\Users\sanjayad\MyApps\LHDConfigEditor\publish\LHDConfigEditor.deps.json
+C:\Users\sanjayad\MyApps\LHDConfigEditor\publish\LHDConfigEditor.runtimeconfig.json
+C:\Users\sanjayad\MyApps\LHDConfigEditor\publish\LHDConfigEditor.pdb
+C:\Users\sanjayad\MyApps\LHDConfigEditor\publish\CsvHelper.dll

@@ -1,0 +1,5 @@
+<Project>
+  <Target Name="UpdateVersionHistory" AfterTargets="Publish">
+    <Exec Command="powershell -ExecutionPolicy Bypass -File &quot;$(MSBuildProjectDirectory)\update_version_history.ps1&quot;" />
+  </Target>
+</Project>

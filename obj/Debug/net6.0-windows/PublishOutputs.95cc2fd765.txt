@@ -1,0 +1,6 @@
+C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\publish\PWQ.exe
+C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\publish\PWQ.dll
+C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\publish\PWQ.deps.json
+C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\publish\PWQ.runtimeconfig.json
+C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\publish\PWQ.pdb
+C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\publish\CsvHelper.dll
