@@ -1,7 +1,7 @@
 ; PWQInstaller.iss - Inno Setup script for PWQ standalone installer
 [Setup]
 AppName=PWQ
-AppVersion=1.0.7
+AppVersion=1.0.4
 DefaultDirName={pf}\PWQ
 DefaultGroupName=PWQ
 OutputDir=.
@@ -11,7 +11,7 @@ SolidCompression=yes
 SetupIconFile=C:\Users\sanjayad\MyApps\PWQ\PWQ_logo.ico
 
 [Files]
-Source: "C:\\Users\\sanjayad\\MyApps\\PWQ\\bin\\Release\\net6.0-windows\\win-x64\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "C:\\Users\\sanjayad\\MyApps\\PWQ\\bin\\Release\\net6.0-windows\\win-x64\\publish\\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\PWQ"; Filename: "{app}\PWQ.exe"

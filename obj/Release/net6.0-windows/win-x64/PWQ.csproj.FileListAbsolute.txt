@@ -1033,3 +1033,4 @@ C:\Users\sanjayad\MyApps\PWQ\obj\Release\net6.0-windows\win-x64\refint\PWQ.dll
 C:\Users\sanjayad\MyApps\PWQ\obj\Release\net6.0-windows\win-x64\PWQ.pdb
 C:\Users\sanjayad\MyApps\PWQ\obj\Release\net6.0-windows\win-x64\PWQ.genruntimeconfig.cache
 C:\Users\sanjayad\MyApps\PWQ\obj\Release\net6.0-windows\win-x64\ref\PWQ.dll
+C:\Users\sanjayad\MyApps\PWQ\bin\Release\net6.0-windows\win-x64\PWQ_logo.ico

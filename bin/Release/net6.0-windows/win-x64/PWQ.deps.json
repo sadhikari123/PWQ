@@ -7,7 +7,7 @@
   "targets": {
     ".NETCoreApp,Version=v6.0": {},
     ".NETCoreApp,Version=v6.0/win-x64": {
-      "PWQ/1.0.7": {
+      "PWQ/1.0.3": {
         "dependencies": {
           "CsvHelper": "30.0.1",
           "runtimepack.Microsoft.NETCore.App.Runtime.win-x64": "6.0.36",
@@ -1090,7 +1090,7 @@
     }
   },
   "libraries": {
-    "PWQ/1.0.7": {
+    "PWQ/1.0.3": {
       "type": "project",
       "serviceable": false,
       "sha512": ""

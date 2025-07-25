@@ -38,22 +38,36 @@ $date = Get-Date -Format 'yyyy-MM-dd'
 # Read current version history
 $lines = Get-Content $versionHistory
 
-# Prompt for change description
-$changes = Read-Host "Enter change description for version $newVersion"
-if (-not $changes) { $changes = "-" }
+# Auto-generate change description from today's git commit messages
+$gitLog = git log --since="$date 00:00" --until="$date 23:59" --pretty=format:"%s" | Where-Object { $_ -ne "" }
+if ($gitLog) {
+    $changes = ($gitLog -join '; ')
+} else {
+    $changes = "-"
+}
 
 # Find the line after the header to insert new entry
 $headerIndex = ($lines | Select-String -Pattern "^\| Version ").LineNumber
 if (-not $headerIndex) { $headerIndex = 1 }
 $insertIndex = $headerIndex
 
+# Remove any existing entry for today's date
+$filtered = @()
+for ($i = 0; $i -lt $lines.Count; $i++) {
+    $line = $lines[$i]
+    if ($line -match "^\|[ ]*\d+\.\d+\.\d+[ ]*\|[ ]*$date[ ]*\|") {
+        continue
+    }
+    $filtered += $line
+}
+
 # Format new entry
 $newEntry = "| $newVersion   | $date | $changes        |"
 
 # Insert new entry after header
 $updated = @()
-for ($i = 0; $i -lt $lines.Count; $i++) {
-    $updated += $lines[$i]
+for ($i = 0; $i -lt $filtered.Count; $i++) {
+    $updated += $filtered[$i]
     if ($i -eq $insertIndex) {
         $updated += $newEntry
     }

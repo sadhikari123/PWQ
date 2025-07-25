@@ -1,4 +1,5 @@
 C:\Users\sanjayad\MyApps\PWQ\bin\Release\net6.0-windows\win-x64\publish\PWQ.exe
+C:\Users\sanjayad\MyApps\PWQ\bin\Release\net6.0-windows\win-x64\publish\PWQ_logo.ico
 C:\Users\sanjayad\MyApps\PWQ\bin\Release\net6.0-windows\win-x64\publish\PWQ.dll
 C:\Users\sanjayad\MyApps\PWQ\bin\Release\net6.0-windows\win-x64\publish\PWQ.deps.json
 C:\Users\sanjayad\MyApps\PWQ\bin\Release\net6.0-windows\win-x64\publish\PWQ.runtimeconfig.json

@@ -1,5 +1,8 @@
 | Version | Date       | Changes                       |
 |---------|------------|-------------------------------|
+| 1.0.4   | 2025-07-25 | -        |
+| 1.0.3   | 2025-07-25 | -        |
+| 1.0.2   | 2025-07-24 | -        |
 | 1.0.1   | 2025-07-24 | Added automated version history, logo generation, installer integration, and improved icon handling. |
 | 1.0.0   | 2025-07-21 | Initial release of PWQ        |
 

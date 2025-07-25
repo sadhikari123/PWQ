@@ -1,0 +1,5 @@
+<ItemGroup>
+  <None Include="PWQ_logo.ico">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </None>
+</ItemGroup>
