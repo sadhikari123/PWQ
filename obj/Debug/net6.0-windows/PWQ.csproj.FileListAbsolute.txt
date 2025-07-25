@@ -34,3 +34,4 @@ C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\CsvHelper.dll
 C:\Users\sanjayad\MyApps\PWQ\obj\Debug\net6.0-windows\PWQ.csproj.Up2Date
 C:\Users\sanjayad\MyApps\PWQ\obj\Debug\net6.0-windows\PWQ.genruntimeconfig.cache
 C:\Users\sanjayad\MyApps\PWQ\obj\Debug\net6.0-windows\ref\PWQ.dll
+C:\Users\sanjayad\MyApps\PWQ\obj\Debug\net6.0-windows\PWQ.sourcelink.json

@@ -150,7 +150,7 @@ namespace PWQ.Forms
             try
             {
                 // Load the icon from the file (prefer .ico, fallback to .png)
-                string iconPath = Path.Combine(Application.StartupPath, "app_icon.ico");
+                string iconPath = Path.Combine(Application.StartupPath, "PWQ_logo.ico");
                 if (File.Exists(iconPath))
                 {
                     this.Icon = new Icon(iconPath);
@@ -158,7 +158,7 @@ namespace PWQ.Forms
                 else
                 {
                     // Try relative path
-                    iconPath = "app_icon.ico";
+                    iconPath = "PWQ_logo.ico";
                     if (File.Exists(iconPath))
                     {
                         this.Icon = new Icon(iconPath);
@@ -166,7 +166,7 @@ namespace PWQ.Forms
                     else
                     {
                         // Fallback: try PNG (Windows Forms supports this via Bitmap)
-                        string pngPath = Path.Combine(Application.StartupPath, "app_icon_256.png");
+                        string pngPath = Path.Combine(Application.StartupPath, "PWQ_logo_256.png");
                         if (File.Exists(pngPath))
                         {
                             this.Icon = System.Drawing.Icon.FromHandle(new Bitmap(pngPath).GetHicon());

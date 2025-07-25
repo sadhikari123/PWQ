@@ -10,13 +10,13 @@
 using System;
 using System.Reflection;
 
-[assembly: System.Reflection.AssemblyCompanyAttribute("LHDConfigEditor")]
+[assembly: System.Reflection.AssemblyCompanyAttribute("PWQ")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.3.1.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.3.1+a0915f06cc31ef9fd8c5c6eaf98eda6626048a60")]
-[assembly: System.Reflection.AssemblyProductAttribute("LHDConfigEditor")]
-[assembly: System.Reflection.AssemblyTitleAttribute("LHDConfigEditor")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.3.1.0")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.7.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.7+27e09b6c579c95e50d821a82d0a775e338b8d0cd")]
+[assembly: System.Reflection.AssemblyProductAttribute("PWQ")]
+[assembly: System.Reflection.AssemblyTitleAttribute("PWQ")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.7.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
 

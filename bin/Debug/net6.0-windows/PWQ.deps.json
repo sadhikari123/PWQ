@@ -6,7 +6,7 @@
   "compilationOptions": {},
   "targets": {
     ".NETCoreApp,Version=v6.0": {
-      "PWQ/1.0.0": {
+      "PWQ/1.0.8": {
         "dependencies": {
           "CsvHelper": "30.0.1"
         },
@@ -25,7 +25,7 @@
     }
   },
   "libraries": {
-    "PWQ/1.0.0": {
+    "PWQ/1.0.8": {
       "type": "project",
       "serviceable": false,
       "sha512": ""
