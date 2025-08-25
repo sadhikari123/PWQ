@@ -1,4 +1,3 @@
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -457,7 +456,42 @@ namespace PWQ.Forms
                     ColumnHeadersBorderStyle = DataGridViewHeaderBorderStyle.Single,
                     AutoGenerateColumns = true
                 };
-                dataGrid.DataSource = ToDataTable(config.Rows, config.Columns);
+                // For most tabs we can bind the plain DataTable. For PWQ Litho Layers we add
+                // a helper DateTime column (`TimestampSort`) and bind the DefaultView sorted
+                // DESC so the newest timestamps appear on top.
+                if (string.Equals(config.Name, "PWQ Litho Layers", StringComparison.OrdinalIgnoreCase))
+                {
+                    var dt = ToDataTable(config.Rows, config.Columns);
+                    if (!dt.Columns.Contains("TimestampSort"))
+                        dt.Columns.Add("TimestampSort", typeof(DateTime));
+
+                    // Heuristically find a timestamp-like column in the config (case-insensitive)
+                    string tsCol = config.Columns.FirstOrDefault(c =>
+                        string.Equals(c, "Timestamp", StringComparison.OrdinalIgnoreCase)
+                        || c.IndexOf("date", StringComparison.OrdinalIgnoreCase) >= 0
+                        || c.IndexOf("time", StringComparison.OrdinalIgnoreCase) >= 0);
+
+                    if (!string.IsNullOrEmpty(tsCol))
+                    {
+                        foreach (System.Data.DataRow dr in dt.Rows)
+                        {
+                            DateTime parsed;
+                            if (DateTime.TryParse(dr[tsCol]?.ToString(), out parsed))
+                                dr["TimestampSort"] = parsed;
+                            else
+                                dr["TimestampSort"] = DateTime.MinValue;
+                        }
+                    }
+
+                    // Sort newest first and bind the DefaultView so DataGridView reflects the order
+                    dt.DefaultView.Sort = "TimestampSort DESC";
+                    dataGrid.DataSource = dt.DefaultView;
+                }
+                else
+                {
+                    dataGrid.DataSource = ToDataTable(config.Rows, config.Columns);
+                }
+
                 dataGrid.DataBindingComplete += (s, e) =>
                 {
                     dataGrid.AutoResizeColumns(DataGridViewAutoSizeColumnsMode.AllCells);
@@ -479,6 +513,12 @@ namespace PWQ.Forms
                         baseHeader = baseHeader.Replace(" ▼", "").Replace("▼", "").TrimEnd();
                         col.HeaderText = baseHeader + "  ▼"; // Add dark bold triangle
                         col.Name = baseHeader; // Ensure column.Name is always the original column name (no triangle)
+
+                        // Hide the helper sort column if present
+                        if (string.Equals(col.Name, "TimestampSort", StringComparison.OrdinalIgnoreCase))
+                        {
+                            col.Visible = false;
+                        }
                     }
                 };
                 // Enable double-click to edit row (disable for MAO if no write)
@@ -745,11 +785,11 @@ namespace PWQ.Forms
                         if (!historyGrid.Columns["Operation"].HeaderText.EndsWith(" ▼"))
                             historyGrid.Columns["Operation"].HeaderText = "Operation ▼";
                     }
-                    if (historyGrid.Columns["RowKey"] != null)
+                    if (historyGrid.Columns["Reticle"] != null)
                     {
-                        historyGrid.Columns["RowKey"].Width = 80;
-                        if (!historyGrid.Columns["RowKey"].HeaderText.EndsWith(" ▼"))
-                            historyGrid.Columns["RowKey"].HeaderText = "Row Key ▼";
+                        historyGrid.Columns["Reticle"].Width = 80;
+                        if (!historyGrid.Columns["Reticle"].HeaderText.EndsWith(" ▼"))
+                            historyGrid.Columns["Reticle"].HeaderText = "Reticle ▼";
                     }
                     if (historyGrid.Columns["ChangeSummary"] != null)
                     {
@@ -842,7 +882,10 @@ namespace PWQ.Forms
         // Refresh the history grid data
         private void RefreshHistoryGrid()
         {
+            Console.WriteLine("[DEBUG] RefreshHistoryGrid called");
             var historyEntries = HistoryManager.LoadHistoryEntries();
+            Console.WriteLine($"[DEBUG] Loaded {historyEntries.Count} history entries");
+            
             // Sort by Timestamp descending (latest first)
             historyEntries = historyEntries
                 .OrderByDescending(h => {
@@ -873,8 +916,12 @@ namespace PWQ.Forms
             dt.Columns.Add("Operation", typeof(string));
             dt.Columns.Add("RowKey", typeof(string));
             dt.Columns.Add("ChangeSummary", typeof(string));
+            // Helper column used for reliable DateTime sorting (hidden in UI)
+            dt.Columns.Add("TimestampSort", typeof(DateTime));
             foreach (var h in historyEntries)
             {
+                Console.WriteLine($"[DEBUG] Processing entry: Timestamp={h.Timestamp}, UserID={h.UserID}, ConfigFile={h.ConfigFile}, Operation={h.Operation}, RowKey={h.RowKey}");
+                
                 string formattedTimestamp = h.Timestamp;
                 DateTime dtValue;
                 if (DateTime.TryParse(h.Timestamp, out dtValue))
@@ -904,9 +951,44 @@ namespace PWQ.Forms
                 else
                     changeSummary = h.ChangeSummary ?? "";
 
-                dt.Rows.Add(formattedTimestamp, h.UserID, h.ConfigFile, h.Operation, h.RowKey, changeSummary);
+                // Parse original timestamp into a DateTime for accurate sorting
+                DateTime parsedTs = DateTime.MinValue;
+                DateTime.TryParse(h.Timestamp, out parsedTs);
+                dt.Rows.Add(formattedTimestamp, h.UserID, h.ConfigFile, h.Operation, h.RowKey, changeSummary, parsedTs);
             }
-            historyGrid.DataSource = dt;
+            Console.WriteLine($"[DEBUG] Added {dt.Rows.Count} rows to DataTable");
+
+            // Sort by the helper DateTime column so latest timestamps appear on top
+            dt.DefaultView.Sort = "TimestampSort DESC";
+            historyGrid.DataSource = dt.DefaultView;
+
+            // Force the DataGridView to sort by the bound helper column (defensive)
+            if (historyGrid.Columns.Contains("TimestampSort"))
+            {
+                try
+                {
+                    historyGrid.Sort(historyGrid.Columns["TimestampSort"], System.ComponentModel.ListSortDirection.Descending);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[DEBUG] DataGridView.Sort failed: {ex.Message}");
+                }
+                // Hide the helper sort column from the UI after sorting
+                historyGrid.Columns["TimestampSort"].Visible = false;
+            }
+
+            // Debug: log the first few visible timestamps to verify ordering
+            try
+            {
+                for (int i = 0; i < Math.Min(5, historyGrid.Rows.Count); i++)
+                {
+                    var cellVal = historyGrid.Rows[i].Cells["Timestamp"].Value?.ToString() ?? "";
+                    Console.WriteLine($"[DEBUG] Grid Row {i + 1} Timestamp: {cellVal}");
+                }
+            }
+            catch { }
+
+            Console.WriteLine("[DEBUG] DataSource set to historyGrid (sorted by TimestampSort DESC)");
         }
 
         // Show details dialog for selected history entry
@@ -916,12 +998,28 @@ namespace PWQ.Forms
                 return;
             var row = historyGrid.SelectedRows[0];
             // Extract all available cell values from the selected row
-
-            var details = new Dictionary<string, string>();
+            // Prefer the column.Name (stable logical name) and fall back to HeaderText (trimmed)
+            var details = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            string TrimHeader(string header)
+            {
+                if (string.IsNullOrEmpty(header)) return header;
+                return header.Replace(" ▼", "").Replace("▼", "").Trim();
+            }
             foreach (DataGridViewCell cell in row.Cells)
             {
-                var colName = cell.OwningColumn?.HeaderText ?? cell.OwningColumn?.Name ?? "";
-                details[colName] = cell.Value?.ToString() ?? "";
+                var col = cell.OwningColumn;
+                string key = null;
+                if (col != null)
+                {
+                    // Column.Name is the stable DataPropertyName/Name set by the grid; use it when present
+                    if (!string.IsNullOrWhiteSpace(col.Name))
+                        key = col.Name;
+                    else if (!string.IsNullOrWhiteSpace(col.HeaderText))
+                        key = TrimHeader(col.HeaderText);
+                }
+                key = key ?? "";
+                if (!details.ContainsKey(key))
+                    details[key] = cell.Value?.ToString() ?? "";
             }
 
             // Helper to get value by alternate keys
@@ -935,36 +1033,112 @@ namespace PWQ.Forms
             // Try to load the full HistoryEntry from the CSV for OldValues/NewValues
             var historyEntries = PWQ.Models.HistoryManager.LoadHistoryEntries();
             PWQ.Models.HistoryEntry entry = null;
-            foreach (var h in historyEntries)
+
+            // Prefer matching by RowKey + ConfigFile + Operation + UserID (stable identifiers)
+            string wantedRowKey = GetDetail("RowKey", "Reticle");
+            string wantedConfig = GetDetail("ConfigFile", "Config File");
+            string wantedOp = GetDetail("Operation");
+            string wantedUser = GetDetail("UserID", "User");
+
+            var candidates = historyEntries.Where(h =>
+                (!string.IsNullOrWhiteSpace(wantedRowKey) && !string.IsNullOrWhiteSpace(h.RowKey) && string.Equals(h.RowKey, wantedRowKey, StringComparison.OrdinalIgnoreCase))
+                && (string.IsNullOrWhiteSpace(wantedConfig) || string.Equals(h.ConfigFile, wantedConfig, StringComparison.OrdinalIgnoreCase))
+                && (string.IsNullOrWhiteSpace(wantedOp) || string.Equals(h.Operation, wantedOp, StringComparison.OrdinalIgnoreCase))
+                && (string.IsNullOrWhiteSpace(wantedUser) || string.Equals(h.UserID, wantedUser, StringComparison.OrdinalIgnoreCase))
+            ).ToList();
+
+            if (candidates.Count == 0)
             {
-                if ((h.Timestamp ?? "") == GetDetail("Timestamp") &&
-                    (h.UserID ?? "") == GetDetail("UserID", "User") &&
-                    (h.ConfigFile ?? "") == GetDetail("ConfigFile", "Config File") &&
-                    (h.Operation ?? "") == GetDetail("Operation") &&
-                    (h.RowKey ?? "") == GetDetail("RowKey", "Row Key"))
+                // Fallback: try matching by timestamp proximity + other fields. Parse timestamp displayed in grid.
+                DateTime displayedTs;
+                DateTime.TryParse(GetDetail("Timestamp"), out displayedTs);
+                candidates = historyEntries.Where(h =>
                 {
-                    entry = h;
-                    break;
-                }
+                    if (!string.IsNullOrWhiteSpace(wantedConfig) && !string.Equals(h.ConfigFile, wantedConfig, StringComparison.OrdinalIgnoreCase))
+                        return false;
+                    if (!string.IsNullOrWhiteSpace(wantedOp) && !string.Equals(h.Operation, wantedOp, StringComparison.OrdinalIgnoreCase))
+                        return false;
+                    if (!string.IsNullOrWhiteSpace(wantedUser) && !string.Equals(h.UserID, wantedUser, StringComparison.OrdinalIgnoreCase))
+                        return false;
+                    if (displayedTs == DateTime.MinValue)
+                        return true; // no timestamp to compare, allow broader matches
+                    DateTime hTs;
+                    if (DateTime.TryParse(h.Timestamp, out hTs))
+                    {
+                        return Math.Abs((hTs - displayedTs).TotalSeconds) < 3; // small tolerance
+                    }
+                    return false;
+                }).ToList();
+            }
+
+            if (candidates.Count > 1)
+            {
+                // Choose the candidate with the latest parsed timestamp
+                entry = candidates.OrderByDescending(h => { DateTime d; return DateTime.TryParse(h.Timestamp, out d) ? d : DateTime.MinValue; }).FirstOrDefault();
+            }
+            else if (candidates.Count == 1)
+            {
+                entry = candidates[0];
             }
             var oldDict = new Dictionary<string, string>();
             var newDict = new Dictionary<string, string>();
             if (entry != null)
             {
-                try { if (!string.IsNullOrWhiteSpace(entry.OldValues)) oldDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(entry.OldValues); } catch { }
-                try { if (!string.IsNullOrWhiteSpace(entry.NewValues)) newDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(entry.NewValues); } catch { }
+                Console.WriteLine($"[DEBUG] Found matching entry with OldValues: '{entry.OldValues}' and NewValues: '{entry.NewValues}'");
+                try { 
+                    if (!string.IsNullOrWhiteSpace(entry.OldValues)) {
+                        oldDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(entry.OldValues);
+                        Console.WriteLine($"[DEBUG] Parsed {oldDict.Count} old values");
+                    }
+                } catch (Exception ex) { 
+                    Console.WriteLine($"[DEBUG] Failed to parse OldValues: {ex.Message}");
+                }
+                try { 
+                    if (!string.IsNullOrWhiteSpace(entry.NewValues)) {
+                        newDict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(entry.NewValues);
+                        Console.WriteLine($"[DEBUG] Parsed {newDict.Count} new values");
+                    }
+                } catch (Exception ex) { 
+                    Console.WriteLine($"[DEBUG] Failed to parse NewValues: {ex.Message}");
+                }
             }
+            else
+            {
+                Console.WriteLine("[DEBUG] No matching entry found");
+            }
+            
             // Use all keys found in either OldValues or NewValues
             var allKeys = oldDict.Keys.Union(newDict.Keys).OrderBy(k => k).ToList();
+            Console.WriteLine($"[DEBUG] Found {allKeys.Count} keys from JSON data");
+            
+            // If no keys from JSON, get all the main data columns from the config file
             if (allKeys.Count == 0)
             {
-                // Fallback: show all available details from the grid row
-                allKeys = details.Keys.Where(k => k != "Timestamp" && k != "User" && k != "Config File" && k != "Operation" && k != "Row Key" && k != "Change Summary").ToList();
+                Console.WriteLine("[DEBUG] No keys from JSON, using all available config columns");
+                // Get all columns from the first config file as these represent the main data structure
+                if (configFiles.Count > 0)
+                {
+                    var firstConfig = configFiles.Values.First();
+                    if (firstConfig.Columns != null && firstConfig.Columns.Count > 0)
+                    {
+                        allKeys = firstConfig.Columns.Where(h => !PWQ.Models.Constants.SystemFields.Contains(h)).ToList();
+                        Console.WriteLine($"[DEBUG] Using {allKeys.Count} config columns: {string.Join(", ", allKeys)}");
+                    }
+                }
+                
+                // If still no keys, use common fields
+                if (allKeys.Count == 0)
+                {
+                    allKeys = new List<string> { "Lot ID", "WaferID", "Wafer Type", "LithoLayer", "Reticle", "Device", "Scanner", "Dose UCL", "Dose LCL", "FC UCL", "FC LCL", "BC Dose", "BC Focus" };
+                    Console.WriteLine($"[DEBUG] Using default columns");
+                }
             }
 
+            Console.WriteLine($"[DEBUG] Creating table with {allKeys.Count} columns: {string.Join(", ", allKeys)}");
+            
             var form = new Form {
                 Text = $"History Details - {GetDetail("Operation")}",
-                Size = new System.Drawing.Size(900, 340),
+                Size = new System.Drawing.Size(Math.Max(900, allKeys.Count * 120), 400),
                 StartPosition = FormStartPosition.CenterParent,
                 Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Regular)
             };
@@ -980,43 +1154,47 @@ namespace PWQ.Forms
                 BackgroundColor = System.Drawing.Color.White,
                 BorderStyle = BorderStyle.None
             };
+            
+            // Add "Field" column first
             table.Columns.Add("Field", "Field");
-            foreach (var col in allKeys) table.Columns.Add(col, col);
+            
+            // Add one column for each data field
+            foreach (var col in allKeys) 
+            {
+                table.Columns.Add(col, col);
+                Console.WriteLine($"[DEBUG] Added column: {col}");
+            }
+            
+            // Add the two rows
             table.Rows.Add();
             table.Rows.Add();
             table.Rows[0].Cells[0].Value = "Old Values";
             table.Rows[1].Cells[0].Value = "New Values";
-            bool anyChange = false;
+            
+            Console.WriteLine($"[DEBUG] Table has {table.Columns.Count} columns and {table.Rows.Count} rows");
+            
+            // Fill in all values and highlight changes in red
             for (int i = 0; i < allKeys.Count; i++) {
                 var key = allKeys[i];
                 var oldVal = oldDict.ContainsKey(key) ? oldDict[key] : "";
                 var newVal = newDict.ContainsKey(key) ? newDict[key] : "";
-                // If no Old/NewValues, fallback to grid row
-                if (string.IsNullOrEmpty(oldVal) && details.ContainsKey(key)) oldVal = details[key];
-                if (string.IsNullOrEmpty(newVal) && details.ContainsKey(key)) newVal = details[key];
+                
+                Console.WriteLine($"[DEBUG] Setting column {i+1} ({key}): Old='{oldVal}', New='{newVal}'");
+                
+                // Always show the values
+                table.Rows[0].Cells[i+1].Value = oldVal;
+                table.Rows[1].Cells[i+1].Value = newVal;
+                
+                // Highlight changes in red font
                 if (oldVal != newVal) {
-                    table.Rows[0].Cells[i+1].Value = oldVal;
-                    table.Rows[1].Cells[i+1].Value = newVal;
                     table.Rows[1].Cells[i+1].Style.ForeColor = System.Drawing.Color.Red;
-                    anyChange = true;
-                } else {
-                    table.Rows[0].Cells[i+1].Value = "";
-                    table.Rows[1].Cells[i+1].Value = "";
-                }
-            }
-            // If no changes, show all available values for both rows
-            if (!anyChange) {
-                for (int i = 0; i < allKeys.Count; i++) {
-                    var key = allKeys[i];
-                    var oldVal = oldDict.ContainsKey(key) ? oldDict[key] : (details.ContainsKey(key) ? details[key] : "");
-                    var newVal = newDict.ContainsKey(key) ? newDict[key] : (details.ContainsKey(key) ? details[key] : "");
-                    table.Rows[0].Cells[i+1].Value = oldVal;
-                    table.Rows[1].Cells[i+1].Value = newVal;
+                    table.Rows[1].Cells[i+1].Style.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+                    Console.WriteLine($"[DEBUG] Highlighted change in column {key}");
                 }
             }
             var panel = new Panel { Dock = DockStyle.Top, Height = 110 };
             var meta = new Label {
-                Text = $"Timestamp: {GetDetail("Timestamp")}    User: {GetDetail("UserID", "User")}    Config File: {GetDetail("ConfigFile", "Config File")}    Operation: {GetDetail("Operation")}    Row Key: {GetDetail("RowKey", "Row Key")}\nSummary: {GetDetail("ChangeSummary", "Change Summary")}",
+                Text = $"Timestamp: {GetDetail("Timestamp")}    User: {GetDetail("UserID", "User")}    Config File: {GetDetail("ConfigFile", "Config File")}    Operation: {GetDetail("Operation")}    RowKey: {GetDetail("RowKey", "Reticle")}\nSummary: {GetDetail("ChangeSummary", "Change Summary")}",
                 Dock = DockStyle.Fill,
                 Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular),
                 AutoSize = false,

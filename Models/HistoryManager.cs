@@ -26,7 +26,7 @@ namespace PWQ.Models
                     UserID = Environment.UserName,
                     ConfigFile = configFile,
                     Operation = "ADD",
-                    RowKey = newRow.ContainsKey("KEY") ? newRow["KEY"] : "N/A",
+                    RowKey = newRow.ContainsKey("Reticle") ? newRow["Reticle"] : (newRow.ContainsKey("KEY") ? newRow["KEY"] : "N/A"),
                     ChangeSummary = "New row added",
                     OldValues = "",
                     NewValues = JsonSerializer.Serialize(newRow)
@@ -64,7 +64,10 @@ namespace PWQ.Models
                     UserID = Environment.UserName,
                     ConfigFile = configFile,
                     Operation = "EDIT",
-                    RowKey = newRow.ContainsKey("KEY") ? newRow["KEY"] : (oldRow.ContainsKey("KEY") ? oldRow["KEY"] : "N/A"),
+                    RowKey = newRow.ContainsKey("Reticle") ? newRow["Reticle"] : 
+                             (oldRow.ContainsKey("Reticle") ? oldRow["Reticle"] : 
+                             (newRow.ContainsKey("KEY") ? newRow["KEY"] : 
+                             (oldRow.ContainsKey("KEY") ? oldRow["KEY"] : "N/A"))),
                     ChangeSummary = changes.Count > 0 ? string.Join("; ", changes) : "No significant changes",
                     OldValues = JsonSerializer.Serialize(oldRow),
                     NewValues = JsonSerializer.Serialize(newRow)
@@ -88,7 +91,7 @@ namespace PWQ.Models
                     UserID = Environment.UserName,
                     ConfigFile = configFile,
                     Operation = "DELETE",
-                    RowKey = deletedRow.ContainsKey("KEY") ? deletedRow["KEY"] : "N/A",
+                    RowKey = deletedRow.ContainsKey("Reticle") ? deletedRow["Reticle"] : (deletedRow.ContainsKey("KEY") ? deletedRow["KEY"] : "N/A"),
                     ChangeSummary = "Row deleted",
                     OldValues = JsonSerializer.Serialize(deletedRow),
                     NewValues = ""
@@ -155,36 +158,15 @@ namespace PWQ.Models
             try
             {
                 string historyPath = GetHistoryFilePath();
-                Console.WriteLine($"Loading history from: {historyPath}");
+                Console.WriteLine($"[DEBUG] Loading history from: {historyPath}");
                 
                 if (!File.Exists(historyPath))
                 {
-                    Console.WriteLine("History file does not exist, returning empty list");
+                    Console.WriteLine("[DEBUG] History file does not exist, returning empty list");
                     return entries; // Return empty list if file doesn't exist
                 }
                 
-                Console.WriteLine("History file exists, attempting to read...");
-                
-                // Check if file needs repair by reading first few lines
-                var firstLines = File.ReadLines(historyPath).Take(5).ToList();
-                bool needsRepair = false;
-                
-                if (firstLines.Count > 0)
-                {
-                    var firstLine = firstLines[0];
-                    // Check if first line is proper CSV header
-                    if (!firstLine.StartsWith("Timestamp,UserID,ConfigFile") && 
-                        (firstLine.StartsWith("======") || firstLine.StartsWith("Config:") || !firstLine.Contains(",")))
-                    {
-                        Console.WriteLine("History file appears corrupted, attempting repair...");
-                        needsRepair = true;
-                    }
-                }
-                
-                if (needsRepair)
-                {
-                    RepairHistoryFile();
-                }
+                Console.WriteLine("[DEBUG] History file exists, attempting to read...");
                 
                 using (var reader = new StreamReader(historyPath))
                 using (var csv = new CsvReader(reader, CultureInfo.InvariantCulture))
@@ -193,7 +175,7 @@ namespace PWQ.Models
                     {
                         csv.Read();
                         csv.ReadHeader();
-                        Console.WriteLine("CSV header read successfully");
+                        Console.WriteLine("[DEBUG] CSV header read successfully");
                         
                         int rowCount = 0;
                         while (csv.Read())
@@ -213,20 +195,21 @@ namespace PWQ.Models
                                     NewValues = csv.GetField("NewValues") ?? ""
                                 };
                                 entries.Add(entry);
+                                Console.WriteLine($"[DEBUG] Row {rowCount}: Timestamp='{entry.Timestamp}', UserID='{entry.UserID}', ConfigFile='{entry.ConfigFile}', Operation='{entry.Operation}', RowKey='{entry.RowKey}'");
                             }
                             catch (Exception ex)
                             {
                                 LoggingUtility.LogError($"Failed to parse history entry at row {rowCount}: {ex.Message}");
-                                Console.WriteLine($"Failed to parse history entry at row {rowCount}: {ex.Message}");
+                                Console.WriteLine($"[DEBUG] Failed to parse history entry at row {rowCount}: {ex.Message}");
                                 // Continue to next entry instead of failing completely
                             }
                         }
-                        Console.WriteLine($"Successfully processed {entries.Count} history entries");
+                        Console.WriteLine($"[DEBUG] Successfully processed {entries.Count} history entries");
                     }
                     catch (Exception csvEx)
                     {
                         LoggingUtility.LogError($"Error reading CSV: {csvEx.Message}");
-                        Console.WriteLine($"Error reading CSV: {csvEx.Message}");
+                        Console.WriteLine($"[DEBUG] Error reading CSV: {csvEx.Message}");
                         return entries; // Return what we have so far
                     }
                 }
@@ -234,8 +217,8 @@ namespace PWQ.Models
             catch (Exception ex)
             {
                 LoggingUtility.LogError($"Failed to load history entries: {ex.Message} - Stack: {ex.StackTrace}");
-                Console.WriteLine($"Failed to load history entries: {ex.Message}");
-                Console.WriteLine($"Stack trace: {ex.StackTrace}");
+                Console.WriteLine($"[DEBUG] Failed to load history entries: {ex.Message}");
+                Console.WriteLine($"[DEBUG] Stack trace: {ex.StackTrace}");
             }
             
             // Sort by timestamp descending (most recent first) with null safety
@@ -244,13 +227,13 @@ namespace PWQ.Models
                 var sortedEntries = entries.Where(e => e != null && !string.IsNullOrEmpty(e.Timestamp))
                                           .OrderByDescending(e => e.Timestamp)
                                           .ToList();
-                Console.WriteLine($"Returning {sortedEntries.Count} sorted entries");
+                Console.WriteLine($"[DEBUG] Returning {sortedEntries.Count} sorted entries");
                 return sortedEntries;
             }
             catch (Exception sortEx)
             {
                 LoggingUtility.LogError($"Error sorting entries: {sortEx.Message}");
-                Console.WriteLine($"Error sorting entries: {sortEx.Message}");
+                Console.WriteLine($"[DEBUG] Error sorting entries: {sortEx.Message}");
                 return entries; // Return unsorted if sorting fails
             }
         }
@@ -289,7 +272,8 @@ namespace PWQ.Models
                         line.StartsWith("Changes:") ||
                         line.Contains("=>") ||
                         line.Trim().StartsWith("Operations:") ||
-                        line == "Timestamp,UserID,ConfigFile,Operation,RowKey,ChangeSummary,OldValues,NewValues")
+                        line == "Timestamp,UserID,ConfigFile,Operation,RowKey,ChangeSummary,OldValues,NewValues" ||
+                        line == "Timestamp,UserID,ConfigFile,Operation,Reticle,ChangeSummary,OldValues,NewValues")
                     {
                         continue;
                     }
@@ -331,7 +315,7 @@ namespace PWQ.Models
                     csv.WriteField("UserID");
                     csv.WriteField("ConfigFile");
                     csv.WriteField("Operation");
-                    csv.WriteField("RowKey");
+                    csv.WriteField("Reticle");
                     csv.WriteField("ChangeSummary");
                     csv.WriteField("OldValues");
                     csv.WriteField("NewValues");
