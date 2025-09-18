@@ -247,12 +247,61 @@ namespace PWQ.Forms
             var lines = File.ReadAllLines(versionFile);
             var entries = new List<(string Version, string Date, string Changes)>();
             var regex = new System.Text.RegularExpressions.Regex(@"\|\s*(\d+\.\d+\.\d+)\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|\s*(.*?)\s*\|");
-            foreach (var line in lines)
+
+            // Find the primary table header (a line that contains 'Version' and 'Date')
+            int headerIndex = -1;
+            for (int i = 0; i < lines.Length; i++)
             {
-                var match = regex.Match(line);
-                if (match.Success)
+                var l = lines[i] ?? "";
+                if (l.IndexOf("Version", StringComparison.OrdinalIgnoreCase) >= 0 && l.IndexOf("Date", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    entries.Add((match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value));
+                    headerIndex = i;
+                    break;
+                }
+            }
+
+            if (headerIndex >= 0)
+            {
+                // Parse table rows immediately following the header.
+                // Skip the separator line (---) and continue until we hit a non-table block
+                var separatorRegex = new System.Text.RegularExpressions.Regex(@"^\|\s*-+\s*\|", System.Text.RegularExpressions.RegexOptions.Compiled);
+                bool foundAny = false;
+                for (int i = headerIndex + 1; i < lines.Length; i++)
+                {
+                    var line = lines[i] ?? "";
+                    if (string.IsNullOrWhiteSpace(line))
+                    {
+                        // blank line: if we've already found entries, assume table ended
+                        if (foundAny) break;
+                        else continue;
+                    }
+
+                    if (separatorRegex.IsMatch(line))
+                    {
+                        // skip separator like |---|---|
+                        continue;
+                    }
+
+                    var match = regex.Match(line);
+                    if (match.Success)
+                    {
+                        entries.Add((match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value));
+                        foundAny = true;
+                        continue;
+                    }
+
+                    // Non-table line encountered; stop if we have entries, otherwise keep scanning
+                    if (foundAny) break;
+                }
+            }
+            else
+            {
+                // Fallback: parse any matching table-like lines in the file
+                foreach (var line in lines)
+                {
+                    var match = regex.Match(line);
+                    if (match.Success)
+                        entries.Add((match.Groups[1].Value, match.Groups[2].Value, match.Groups[3].Value));
                 }
             }
             if (entries.Count == 0)
@@ -532,8 +581,12 @@ namespace PWQ.Forms
                             var grid = (DataGridView)s;
                             var row = grid.Rows[e.RowIndex];
                             var keyDict = new Dictionary<string, string>();
+                            // Only include actual config columns (skip helper columns like TimestampSort)
+                            var cfgCols = config.Columns;
                             foreach (DataGridViewColumn col in grid.Columns)
                             {
+                                if (!cfgCols.Contains(col.Name))
+                                    continue;
                                 keyDict[col.Name] = row.Cells[col.Index].Value?.ToString() ?? "";
                             }
                             EditRow(config.Name, keyDict);
@@ -1812,8 +1865,11 @@ namespace PWQ.Forms
             }
             var row = grid.SelectedRows[0];
             var keyDict = new Dictionary<string, string>();
+            var cfgCols = configFiles[fileName].Columns;
             foreach (DataGridViewColumn col in grid.Columns)
             {
+                if (!cfgCols.Contains(col.Name))
+                    continue;
                 keyDict[col.Name] = row.Cells[col.Index].Value?.ToString() ?? "";
             }
             EditRow(fileName, keyDict);
@@ -1965,14 +2021,15 @@ namespace PWQ.Forms
             string lockInfo = $"{user}@{machine}\n{DateTime.Now:yyyy-MM-dd HH:mm:ss}";
             try
             {
-                // Try to create the lock file exclusively
-                var fs = new FileStream(lockFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+                // Try to create the lock file; allow others to read it so they can see the owner info
+                // but prevent other writers by not granting write share.
+                var fs = new FileStream(lockFilePath, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
                 using (var sw = new StreamWriter(fs))
                 {
                     sw.Write(lockInfo);
                 }
-                // Keep a handle so we can delete it later
-                fileLocks[fileName] = new FileStream(lockFilePath, FileMode.Open, FileAccess.Read, FileShare.None);
+                // Keep a handle (read-only) so we can detect and delete it later. Allow others to read it.
+                fileLocks[fileName] = new FileStream(lockFilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
                 lockOwners[fileName] = user + "@" + machine;
                 return true;
             }

@@ -20,6 +20,7 @@ namespace PWQ.Forms
         private Dictionary<string, TextBox> textBoxes = new Dictionary<string, TextBox>();
         private Dictionary<string, ComboBox> comboBoxes = new Dictionary<string, ComboBox>();
         private Dictionary<string, Label> errorLabels = new Dictionary<string, Label>();
+        private ToolTip toolTip = new ToolTip();
 
         public string TabName { get; set; } // Add this property to set from MainForm
 
@@ -77,13 +78,38 @@ namespace PWQ.Forms
             int y = 10;
             int maxLabelWidth = 120;
             int maxInputWidth = 300;
-            int spacingY = 10;
+            int spacingY = 5; // Reduced from 10 to 5
             int controlHeight = 28;
-            int errorLabelHeight = 20;
+            int errorLabelHeight = 15; // Reduced from 20 to 15
             int fieldPadding = 8;
             var controlsList = new List<Control>();
             foreach (var col in columns)
             {
+                // Add description label for X_offset and Y_offset fields
+                if (col.Equals("X_offset", StringComparison.OrdinalIgnoreCase) || col.Equals("Y_offset", StringComparison.OrdinalIgnoreCase))
+                {
+                    string description = "";
+                    if (col.Equals("X_offset", StringComparison.OrdinalIgnoreCase))
+                        description = "This is the offset from graphics die 0,0 to the scanner Shot_Column=0";
+                    else if (col.Equals("Y_offset", StringComparison.OrdinalIgnoreCase))
+                        description = "This is the offset from graphics die 0,0 to the scanner Shot_Row=0";
+                    
+                    var descLbl = new Label 
+                    { 
+                        Text = description, 
+                        Left = 10 + maxLabelWidth + fieldPadding, // Align with input field position
+                        Top = y, 
+                        Width = maxInputWidth, 
+                        Height = 30, // Reduced from 35 to 30
+                        ForeColor = Color.Blue,
+                        Font = new Font(this.Font.FontFamily, 8.5F, FontStyle.Italic),
+                        AutoSize = false,
+                        TextAlign = ContentAlignment.BottomLeft // Align text to bottom for better spacing
+                    };
+                    Controls.Add(descLbl);
+                    y += 32; // Reduced from 40 to 32
+                }
+
                 var lbl = new Label { Text = col, Left = 10, Top = y, Width = maxLabelWidth, Height = controlHeight };
                 Control inputControl;
                 if (col.Equals("userID", StringComparison.OrdinalIgnoreCase))
@@ -217,6 +243,36 @@ namespace PWQ.Forms
                 if (textBoxes.ContainsKey("CLUSTER_NAME"))
                     textBoxes["CLUSTER_NAME"].TextChanged += (s, e) => updateKey();
             }
+            // Autofill Device from first 6 chars of Reticle when appropriate
+            try
+            {
+                var retKey = textBoxes.Keys.FirstOrDefault(k => k.Equals("Reticle", StringComparison.OrdinalIgnoreCase));
+                var devKey = textBoxes.Keys.FirstOrDefault(k => k.Equals("Device", StringComparison.OrdinalIgnoreCase));
+                if (retKey != null && devKey != null)
+                {
+                    var retTxt = textBoxes[retKey];
+                    var devTxt = textBoxes[devKey];
+                    // If user manually edits Device, clear the 'auto' tag so we stop overwriting
+                    devTxt.KeyUp += (s, e) => { devTxt.Tag = null; ValidateField("Device", devTxt.Text); };
+                    // When reticle changes, copy first 6 chars into Device if Device is empty or was auto-filled
+                    retTxt.TextChanged += (s, e) =>
+                    {
+                        string newDev = retTxt.Text != null && retTxt.Text.Length >= 6 ? retTxt.Text.Substring(0, 6) : (retTxt.Text ?? "");
+                        var prevAuto = devTxt.Tag as string;
+                        if (string.IsNullOrEmpty(devTxt.Text) || (prevAuto != null && prevAuto == devTxt.Text))
+                        {
+                            devTxt.Text = newDev;
+                            devTxt.Tag = newDev; // mark as auto-filled
+                            ValidateField("Device", devTxt.Text);
+                        }
+                    };
+                }
+            }
+            catch { }
+            
+            // Set up tooltips for X_offset and Y_offset
+            SetupTooltips();
+            
             // Add Save button at the bottom, centered
             var btnSave = new Button
             {
@@ -325,6 +381,38 @@ namespace PWQ.Forms
                     error = $"{col} must be exactly 3 alphanumeric characters.";
                 }
             }
+            else if (colUpper == "WAFERID")
+            {
+                // WaferID must be exactly 3 numeric characters (e.g. 001, 123)
+                if (!System.Text.RegularExpressions.Regex.IsMatch(value, @"^\d{3}$"))
+                {
+                    error = $"{col} must be exactly 3 numeric characters (e.g. 001).";
+                }
+            }
+            else if (colUpper == "LITHOLAYER")
+            {
+                // LithoLayer must be exactly 3 alphanumeric characters
+                if (value.Length != 3 || !System.Text.RegularExpressions.Regex.IsMatch(value, "^[A-Za-z0-9]{3}$"))
+                {
+                    error = $"{col} must be exactly 3 alphanumeric characters.";
+                }
+            }
+            else if (colUpper == "DEVICE")
+            {
+                // Device must be exactly 6 alphanumeric characters
+                if (value.Length != 6 || !System.Text.RegularExpressions.Regex.IsMatch(value, "^[A-Za-z0-9]{6}$"))
+                {
+                    error = $"{col} must be exactly 6 alphanumeric characters (e.g. ABC123).";
+                }
+            }
+            else if (colUpper == "X_OFFSET" || colUpper == "Y_OFFSET")
+            {
+                // X_offset and Y_offset must be positive or negative integers
+                if (!int.TryParse(value, out int offsetValue))
+                {
+                    error = $"{col} must be a positive or negative integer (e.g. 123, -456, 0).";
+                }
+            }
             else if (colUpper == "TOOLMATRIX")
             {
                 // ToolMatrix: comma-separated list of 6-char alphanumeric Entity codes
@@ -405,8 +493,31 @@ namespace PWQ.Forms
         private void RepositionControls()
         {
             int y = 10;
+            int maxLabelWidth = 120;
+            int maxInputWidth = 300;
+            int fieldPadding = 8;
+            
             foreach (var col in columns)
             {
+                // Check if this column has a description label (for X_offset and Y_offset)
+                if (col.Equals("X_offset", StringComparison.OrdinalIgnoreCase) || col.Equals("Y_offset", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Find and position the description label
+                    string description = "";
+                    if (col.Equals("X_offset", StringComparison.OrdinalIgnoreCase))
+                        description = "This is the offset from graphics die 0,0 to the scanner Shot_Column=0";
+                    else if (col.Equals("Y_offset", StringComparison.OrdinalIgnoreCase))
+                        description = "This is the offset from graphics die 0,0 to the scanner Shot_Row=0";
+                    
+                    var descLbl = Controls.OfType<Label>().FirstOrDefault(l => l.Text == description);
+                    if (descLbl != null)
+                    {
+                        descLbl.Left = 10 + maxLabelWidth + fieldPadding; // Align with input field
+                        descLbl.Top = y;
+                        y += 32; // Reduced spacing - same as in CreateFormControls
+                    }
+                }
+                
                 // Find the label for this column
                 var lbl = Controls.OfType<Label>().FirstOrDefault(l => l.Text == col);
                 
@@ -426,7 +537,7 @@ namespace PWQ.Forms
                             errorLabels[col].Top = y + txt.Height + 2;
                         }
                         
-                        y += txt.Height + 30; // Extra space for error label
+                        y += txt.Height + 20; // Reduced from 30 to 20 for more compact spacing
                     }
                     else if (comboBoxes.ContainsKey(col))
                     {
@@ -439,7 +550,7 @@ namespace PWQ.Forms
                             errorLabels[col].Top = y + 25;
                         }
                         
-                        y += 50; // Fixed height for combobox + error label
+                        y += 43; // Reduced from 50 to 43 for more compact spacing
                     }
                 }
             }
@@ -464,6 +575,41 @@ namespace PWQ.Forms
                 SizeF size = g.MeasureString(txt.Text + "\n", txt.Font, txt.Width);
                 int neededHeight = (int)Math.Ceiling(size.Height) + border + 8;
                 txt.Height = Math.Max(32, neededHeight);
+            }
+        }
+
+        private void SetupTooltips()
+        {
+            // Set up tooltips for X_offset and Y_offset columns
+            foreach (var kvp in textBoxes)
+            {
+                string columnName = kvp.Key;
+                TextBox textBox = kvp.Value;
+                
+                if (columnName.Equals("X_offset", StringComparison.OrdinalIgnoreCase))
+                {
+                    string tooltipText = "This is the offset from graphics die 0,0 to the scanner Shot_Column=0";
+                    toolTip.SetToolTip(textBox, tooltipText);
+                    
+                    // Also set tooltip for the corresponding label
+                    var label = Controls.OfType<Label>().FirstOrDefault(l => l.Text == columnName);
+                    if (label != null)
+                    {
+                        toolTip.SetToolTip(label, tooltipText);
+                    }
+                }
+                else if (columnName.Equals("Y_offset", StringComparison.OrdinalIgnoreCase))
+                {
+                    string tooltipText = "This is the offset from graphics die 0,0 to the scanner Shot_Row=0";
+                    toolTip.SetToolTip(textBox, tooltipText);
+                    
+                    // Also set tooltip for the corresponding label
+                    var label = Controls.OfType<Label>().FirstOrDefault(l => l.Text == columnName);
+                    if (label != null)
+                    {
+                        toolTip.SetToolTip(label, tooltipText);
+                    }
+                }
             }
         }
 
@@ -505,6 +651,11 @@ namespace PWQ.Forms
                 if (colUpper == "LAYER" && (value.Length != 3 || !System.Text.RegularExpressions.Regex.IsMatch(value, "^[A-Za-z0-9]{3}$")))
                 {
                     MessageBox.Show($"{col} must be exactly 3 alphanumeric characters.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+                if ((colUpper == "X_OFFSET" || colUpper == "Y_OFFSET") && !int.TryParse(value, out int offsetValue))
+                {
+                    MessageBox.Show($"{col} must be a positive or negative integer (e.g. 123, -456, 0).", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                     return;
                 }
                 // Enforce Operation field to be 6-digit numeric (for all tabs)
@@ -697,6 +848,57 @@ namespace PWQ.Forms
 
                 // Comments field is optional in OPC Config, so no validation needed
                 // (No validation block for Comments)
+            }
+
+            // Cross-field numeric checks and warnings for Dose / Focus
+            string GetField(string name)
+            {
+                var kv = RowData.FirstOrDefault(kvp => string.Equals(kvp.Key, name, StringComparison.OrdinalIgnoreCase));
+                return kv.Equals(default(KeyValuePair<string, string>)) ? null : kv.Value;
+            }
+
+            var doseUclStr = GetField("Dose UCL");
+            var doseLclStr = GetField("Dose LCL");
+            var bcDoseStr = GetField("BC Dose");
+            if (!string.IsNullOrEmpty(bcDoseStr))
+            {
+                if (!double.TryParse(bcDoseStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double bcDose))
+                {
+                    MessageBox.Show("BC Dose must be a numeric value.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    if (textBoxes.ContainsKey("BC Dose")) textBoxes["BC Dose"].BackColor = Color.LightPink;
+                    return;
+                }
+                if (double.TryParse(doseUclStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double doseUcl) &&
+                    double.TryParse(doseLclStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double doseLcl))
+                {
+                    if (bcDose > doseUcl || bcDose < doseLcl)
+                    {
+                        var resp = MessageBox.Show($"BC Dose ({bcDose}) is outside Dose LCL..UCL ({doseLcl} .. {doseUcl}). Do you want to continue saving?", "BC Dose Outside Limits", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                        if (resp == DialogResult.No) return;
+                    }
+                }
+            }
+
+            var fcUclStr = GetField("FC UCL");
+            var fcLclStr = GetField("FC LCL");
+            var bcFocusStr = GetField("BC Focus");
+            if (!string.IsNullOrEmpty(bcFocusStr))
+            {
+                if (!double.TryParse(bcFocusStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double bcFocus))
+                {
+                    MessageBox.Show("BC Focus must be a numeric value.", "Validation Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    if (textBoxes.ContainsKey("BC Focus")) textBoxes["BC Focus"].BackColor = Color.LightPink;
+                    return;
+                }
+                if (double.TryParse(fcUclStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double fcUcl) &&
+                    double.TryParse(fcLclStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double fcLcl))
+                {
+                    if (bcFocus > fcUcl || bcFocus < fcLcl)
+                    {
+                        var resp2 = MessageBox.Show($"BC Focus ({bcFocus}) is outside FC LCL..UCL ({fcLcl} .. {fcUcl}). Do you want to continue saving?", "BC Focus Outside Limits", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                        if (resp2 == DialogResult.No) return;
+                    }
+                }
             }
 
             // Remove confirmation here, just close and let MainForm handle confirmation
@@ -1065,7 +1267,7 @@ namespace PWQ.Forms
                     formattedOps.Add(trimmed);
                 }
             }
-            
+
             return string.Join(", ", formattedOps);
         }
     }

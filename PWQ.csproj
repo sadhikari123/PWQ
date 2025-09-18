@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -6,7 +6,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <RootNamespace>PWQ</RootNamespace>
     <AssemblyName>PWQ</AssemblyName>
-    <Version>1.0.4</Version>
+  <Version>1.0.12</Version>
     <ApplicationIcon>PWQ_logo.ico</ApplicationIcon>
   </PropertyGroup>
 
@@ -15,9 +15,19 @@
     <None Include="PWQ_logo.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="VERSION_HISTORY.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
+
+
+
+
+
+
+
 
 
 

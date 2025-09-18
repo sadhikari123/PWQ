@@ -8,7 +8,7 @@ namespace PWQ.Models
         
         public static readonly Dictionary<string, string> CsvFiles = new Dictionary<string, string>
         {
-            { "PWQ Litho Layers", @"\\ORSHFS.intel.com\ORAnalysis$\1278_MAODATA\LITHO_LAYER\PWQ\PWQ_litho_layers.csv" }
+            { "PWQ Litho Layers", @"\\orshfs.intel.com\orAnalysis$\1278_MAODATA\LITHO_LAYER\PWQ\PWQ_litho_layers.csv" }
         };
         
         // Archive and history file for PWQ

@@ -36,3 +36,4 @@ C:\Users\sanjayad\MyApps\PWQ\obj\Debug\net6.0-windows\PWQ.genruntimeconfig.cache
 C:\Users\sanjayad\MyApps\PWQ\obj\Debug\net6.0-windows\ref\PWQ.dll
 C:\Users\sanjayad\MyApps\PWQ\obj\Debug\net6.0-windows\PWQ.sourcelink.json
 C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\PWQ_logo.ico
+C:\Users\sanjayad\MyApps\PWQ\bin\Debug\net6.0-windows\VERSION_HISTORY.md

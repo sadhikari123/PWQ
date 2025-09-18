@@ -1,11 +1,11 @@
 ; PWQInstaller.iss - Inno Setup script for PWQ standalone installer
 [Setup]
 AppName=PWQ
-AppVersion=1.0.4
+AppVersion=1.0.12
 DefaultDirName={pf}\PWQ
 DefaultGroupName=PWQ
 OutputDir=.
-OutputBaseFilename=PWQInstaller
+OutputBaseFilename=PWQInstaller-1.0.12
 Compression=lzma
 SolidCompression=yes
 SetupIconFile=C:\Users\sanjayad\MyApps\PWQ\PWQ_logo.ico

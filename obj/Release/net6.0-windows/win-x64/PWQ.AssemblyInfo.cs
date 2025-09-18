@@ -12,11 +12,11 @@ using System.Reflection;
 
 [assembly: System.Reflection.AssemblyCompanyAttribute("PWQ")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
-[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.3.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.3+afbc709fabfa0515c173561aa34e4a100ffc284c")]
+[assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.9.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.9+7f700b7855225f7867525937c82795eb2afdab52")]
 [assembly: System.Reflection.AssemblyProductAttribute("PWQ")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PWQ")]
-[assembly: System.Reflection.AssemblyVersionAttribute("1.0.3.0")]
+[assembly: System.Reflection.AssemblyVersionAttribute("1.0.9.0")]
 [assembly: System.Runtime.Versioning.TargetPlatformAttribute("Windows7.0")]
 [assembly: System.Runtime.Versioning.SupportedOSPlatformAttribute("Windows7.0")]
 
